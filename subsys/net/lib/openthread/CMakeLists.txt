@@ -124,6 +124,7 @@ set(configure_flags
   --disable-docs
   --with-platform-info=zephyr
   --enable-builtin-mbedtls=no
+  --enable-application-coap-secure=yes
 )
 
 # TODO: Simplify
