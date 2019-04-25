@@ -62,17 +62,26 @@ otError utilsFlashErasePage(u32_t aAddress)
 {
 	struct flash_pages_info info;
 	u32_t address;
+	otError err;
 
 	address = mapAddress(aAddress);
 	if (flash_get_page_info_by_offs(flash_dev, address, &info)) {
 		return OT_ERROR_FAILED;
 	}
 
-	if (flash_erase(flash_dev, address, info.size)) {
+	if (flash_write_protection_set(flash_dev, false) < 0) {
 		return OT_ERROR_FAILED;
 	}
 
-	return OT_ERROR_NONE;
+	if (flash_erase(flash_dev, address, info.size) < 0) {
+		err = OT_ERROR_FAILED;
+	} else {
+		err = OT_ERROR_NONE;
+	}
+
+	(void)flash_write_protection_set(flash_dev, true);
+
+	return err;
 }
 
 otError utilsFlashStatusWait(u32_t aTimeout)
