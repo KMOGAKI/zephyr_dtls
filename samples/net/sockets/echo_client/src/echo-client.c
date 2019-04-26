@@ -137,9 +137,9 @@ void main(void)
 
 	init_app();
 
-	while (true) {
-		k_sleep(K_SECONDS(1));
-	}
+	// while (true) {
+	// 	k_sleep(K_SECONDS(1));
+	// }
 
 	if (IS_ENABLED(CONFIG_NET_TCP)) {
 		ret = start_tcp();
