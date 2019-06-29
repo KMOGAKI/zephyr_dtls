@@ -58,6 +58,7 @@ endif
 
 config MBEDTLS_SSL_MAX_CONTENT_LEN
 	int "Max payload size for TLS protocol message"
+	default 768 if NET_L2_OPENTHREAD
 	default 1500
 	depends on MBEDTLS_BUILTIN
 	help
@@ -124,6 +125,7 @@ config MBEDTLS_ENABLE_HEAP
 
 config MBEDTLS_HEAP_SIZE
 	int "Heap size for mbed TLS"
+	default 8000 if NET_L2_OPENTHREAD && (OPENTHREAD_COMMISSIONER || OPENTHREAD_JOINER)
 	default 512
 	depends on MBEDTLS_ENABLE_HEAP
 	help

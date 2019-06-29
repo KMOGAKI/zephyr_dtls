@@ -461,6 +461,33 @@ static bool usb_get_descriptor(u16_t type_index, u16_t lang_id,
 	return found;
 }
 
+static bool set_endpoint(const struct usb_ep_descriptor *ep_desc)
+{
+	struct usb_dc_ep_cfg_data ep_cfg;
+
+	ep_cfg.ep_addr = ep_desc->bEndpointAddress;
+	ep_cfg.ep_mps = sys_le16_to_cpu(ep_desc->wMaxPacketSize);
+
+	if (ep_desc->bmAttributes > USB_DC_EP_INTERRUPT) {
+		return false;
+	}
+
+	ep_cfg.ep_type = ep_desc->bmAttributes;
+
+	LOG_DBG("Configure endpoint 0x%x type %u MPS %u",
+		ep_cfg.ep_addr, ep_cfg.ep_type, ep_cfg.ep_mps);
+
+	if (usb_dc_ep_configure(&ep_cfg) < 0) {
+		return false;
+	}
+
+	if (usb_dc_ep_enable(ep_cfg.ep_addr) < 0) {
+		return false;
+	}
+
+	return true;
+}
+
 /*
  * @brief set USB configuration
  *
@@ -475,22 +502,18 @@ static bool usb_get_descriptor(u16_t type_index, u16_t lang_id,
  */
 static bool usb_set_configuration(u8_t config_index, u8_t alt_setting)
 {
-	u8_t *p = NULL;
-	u8_t cur_config = 0U;
-	u8_t cur_alt_setting = 0U;
+	u8_t *p = (u8_t *)usb_dev.descriptors;
+	u8_t cur_alt_setting = 0xFF;
+	u8_t cur_config = 0xFF;
+	bool found = false;
 
 	if (config_index == 0U) {
-		/* unconfigure device */
-		LOG_DBG("Device not configured - invalid configuration "
-			"offset");
+		/* TODO: unconfigure device */
+		LOG_DBG("Device not configured - invalid configuration");
 		return true;
 	}
 
 	/* configure endpoints for this configuration/altsetting */
-	p = (u8_t *)usb_dev.descriptors;
-	cur_config = 0xFF;
-	cur_alt_setting = 0xFF;
-
 	while (p[DESC_bLength] != 0U) {
 		switch (p[DESC_bDescriptorType]) {
 		case DESC_CONFIGURATION:
@@ -505,28 +528,18 @@ static bool usb_set_configuration(u8_t config_index, u8_t alt_setting)
 			break;
 
 		case DESC_ENDPOINT:
-			if ((cur_config == config_index) &&
-			    (cur_alt_setting == alt_setting)) {
-				struct usb_dc_ep_cfg_data ep_cfg;
-				/* endpoint found for desired config
-				 * and alternate setting
-				 */
-				ep_cfg.ep_type =
-				    p[ENDP_DESC_bmAttributes];
-				ep_cfg.ep_mps =
-				    (p[ENDP_DESC_wMaxPacketSize]) |
-				    (p[ENDP_DESC_wMaxPacketSize + 1]
-					    << 8);
-				ep_cfg.ep_addr =
-				    p[ENDP_DESC_bEndpointAddress];
-				usb_dc_ep_configure(&ep_cfg);
-				usb_dc_ep_enable(ep_cfg.ep_addr);
+			if ((cur_config != config_index) ||
+			    (cur_alt_setting != alt_setting)) {
+				break;
 			}
+
+			found = set_endpoint((struct usb_ep_descriptor *)p);
 			break;
 
 		default:
 			break;
 		}
+
 		/* skip to next descriptor */
 		p += p[DESC_bLength];
 	}
@@ -535,7 +548,7 @@ static bool usb_set_configuration(u8_t config_index, u8_t alt_setting)
 		usb_dev.status_callback(USB_DC_CONFIGURED, &config_index);
 	}
 
-	return true;
+	return found;
 }
 
 /*
@@ -557,8 +570,6 @@ static bool usb_set_interface(u8_t iface, u8_t alt_setting)
 	LOG_DBG("iface %u alt_setting %u", iface, alt_setting);
 
 	while (p[DESC_bLength] != 0U) {
-		struct usb_dc_ep_cfg_data ep_cfg;
-
 		switch (p[DESC_bDescriptorType]) {
 		case DESC_INTERFACE:
 			/* remember current alternate setting */
@@ -570,8 +581,7 @@ static bool usb_set_interface(u8_t iface, u8_t alt_setting)
 				if_desc = (void *)p;
 			}
 
-			LOG_DBG("iface_num %u alt_set %u",
-				cur_iface, cur_alt_setting);
+			LOG_DBG("iface_num %u alt_set %u", iface, alt_setting);
 			break;
 		case DESC_ENDPOINT:
 			if ((cur_iface != iface) ||
@@ -579,18 +589,7 @@ static bool usb_set_interface(u8_t iface, u8_t alt_setting)
 				break;
 			}
 
-			/* Endpoint is found for desired interface and
-			 * alternate setting
-			 */
-			ep_cfg.ep_type = p[ENDP_DESC_bmAttributes];
-			ep_cfg.ep_mps = (p[ENDP_DESC_wMaxPacketSize]) |
-				(p[ENDP_DESC_wMaxPacketSize + 1] << 8);
-			ep_cfg.ep_addr = p[ENDP_DESC_bEndpointAddress];
-			usb_dc_ep_configure(&ep_cfg);
-			usb_dc_ep_enable(ep_cfg.ep_addr);
-
-			found = true;
-			LOG_DBG("Found: ep_addr 0x%x", ep_cfg.ep_addr);
+			found = set_endpoint((struct usb_ep_descriptor *)p);
 			break;
 		default:
 			break;

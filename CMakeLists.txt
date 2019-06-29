@@ -356,6 +356,14 @@ zephyr_cc_option(-Werror=implicit-int)
 # Prohibit void pointer arithmetic. Illegal in C99
 zephyr_cc_option(-Wpointer-arith)
 
+# If the compiler supports it, strip the ${ZEPHYR_BASE} prefix from the
+# __FILE__ macro used in __ASSERT*, in the
+# .noinit."/home/joe/zephyr/fu/bar.c" section names and in any
+# application code. This saves some memory, stops leaking user locations
+# in binaries, makes failure logs more deterministic and most
+# importantly makes builds more deterministic
+zephyr_cc_option(-fmacro-prefix-map=${ZEPHYR_BASE}=.)
+
 # Prohibit date/time macros, which would make the build non-deterministic
 # cc-option(-Werror=date-time)
 
@@ -388,7 +396,8 @@ zephyr_ld_options(
 
 # Sort the common symbols and each input section by alignment
 # in descending order to minimize padding between these symbols.
-zephyr_ld_options(
+zephyr_ld_option_ifdef(
+  CONFIG_LINKER_SORT_BY_ALIGNMENT
   ${LINKERFLAGPREFIX},--sort-common=descending
   ${LINKERFLAGPREFIX},--sort-section=alignment
   )
@@ -719,6 +728,7 @@ add_custom_command(
   ${ZEPHYR_BASE}/scripts/gen_kobject_list.py
   --validation-output ${DRV_VALIDATION}
   $<$<BOOL:${CMAKE_VERBOSE_MAKEFILE}>:--verbose>
+  DEPENDS ${ZEPHYR_BASE}/scripts/gen_kobject_list.py
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
 add_custom_target(${DRIVER_VALIDATION_H_TARGET} DEPENDS ${DRV_VALIDATION})
@@ -889,6 +899,8 @@ if(CONFIG_USERSPACE)
 endif()
 
 
+# Warning most of this gperf code is duplicated below for
+# gen_kobject_list.py / output_lib
 if(CONFIG_ARM AND CONFIG_USERSPACE)
   set(GEN_PRIV_STACKS $ENV{ZEPHYR_BASE}/scripts/gen_priv_stacks.py)
   set(PROCESS_PRIV_STACKS_GPERF $ENV{ZEPHYR_BASE}/scripts/process_gperf.py)
@@ -1012,6 +1024,8 @@ if(CONFIG_ARM AND CONFIG_USERSPACE)
   set_property(GLOBAL APPEND PROPERTY GENERATED_KERNEL_OBJECT_FILES priv_stacks_output_obj_renamed_lib)
 endif()
 
+# Warning: most of this gperf code is duplicated above for
+# gen_priv_stacks.py / priv_stacks_output_lib
 if(CONFIG_USERSPACE)
   set(GEN_KOBJ_LIST ${ZEPHYR_BASE}/scripts/gen_kobject_list.py)
   set(PROCESS_GPERF ${ZEPHYR_BASE}/scripts/process_gperf.py)
@@ -1026,7 +1040,7 @@ if(CONFIG_USERSPACE)
   # out of the nearly finished elf file, generating the source code
   # for a hash table based on that information, and then compiling and
   # linking the hash table back into a now even more nearly finished
-  # elf file.
+  # elf file. More information in gen_kobject_list.py --help.
 
   # Use the script GEN_KOBJ_LIST to scan the kernel binary's
   # (${ZEPHYR_PREBUILT_EXECUTABLE}) DWARF information to produce a table of kernel
@@ -1289,7 +1303,12 @@ set_property(TARGET   ${ZEPHYR_PREBUILT_EXECUTABLE} PROPERTY LINK_DEPENDS ${PROJ
 add_dependencies(     ${ZEPHYR_PREBUILT_EXECUTABLE} ${ALIGN_SIZING_DEP} ${PRIV_STACK_DEP} ${LINKER_SCRIPT_TARGET} ${OFFSETS_LIB})
 
 
-if(GKOF OR GKSF)
+set(generated_kernel_files ${GKSF} ${GKOF})
+if(NOT generated_kernel_files)
+  # Use the prebuilt elf as the final elf since we don't have a
+  # generation stage.
+  set(logical_target_for_zephyr_elf ${ZEPHYR_PREBUILT_EXECUTABLE})
+else()
   set(KERNEL_ELF kernel_elf)
   set(logical_target_for_zephyr_elf ${KERNEL_ELF})
 
@@ -1325,18 +1344,16 @@ if(GKOF OR GKSF)
   target_link_libraries(${KERNEL_ELF} ${GKOF} ${TOPT} ${PROJECT_BINARY_DIR}/linker_pass_final.cmd ${zephyr_lnk} ${CODE_RELOCATION_DEP})
   set_property(TARGET   ${KERNEL_ELF} PROPERTY LINK_DEPENDS ${PROJECT_BINARY_DIR}/linker_pass_final.cmd)
   add_dependencies(     ${KERNEL_ELF} ${ALIGN_SIZING_DEP} ${PRIV_STACK_DEP} ${LINKER_PASS_FINAL_SCRIPT_TARGET})
-else()
-  set(logical_target_for_zephyr_elf ${ZEPHYR_PREBUILT_EXECUTABLE})
-  # Use the prebuilt elf as the final elf since we don't have a
-  # generation stage.
 endif()
 
 # Export the variable to the application's scope to allow the
 # application to know what the name of the final elf target is.
 set(logical_target_for_zephyr_elf ${logical_target_for_zephyr_elf} PARENT_SCOPE)
 
-# To avoid having the same logical target name for the zephyr lib and
-# the zephyr elf, we set the kernel_elf file name to zephyr.elf.
+# Override the base name of final .elf so:
+# 1. it doesn't depend on the number of passes above and the
+#    post_build_commands below can always find it no matter which is it;
+# 2. it can be defined in Kconfig
 set_target_properties(${logical_target_for_zephyr_elf} PROPERTIES OUTPUT_NAME ${KERNEL_NAME})
 
 set(post_build_commands "")
@@ -1403,11 +1420,14 @@ list(APPEND
   ${extra_post_build_commands}
   )
 
+# Add post_build_commands to post-process the final .elf file produced by
+# either the ZEPHYR_PREBUILT_EXECUTABLE or the KERNEL_ELF executable
+# targets above.
 add_custom_command(
   TARGET ${logical_target_for_zephyr_elf}
   POST_BUILD
   ${post_build_commands}
-  COMMENT "Generating files from zephyr.elf for board: ${BOARD}"
+  COMMENT "Generating files from ${KERNEL_ELF_NAME} for board: ${BOARD}"
   # NB: COMMENT only works for some CMake-Generators
   )
 

@@ -107,6 +107,9 @@ struct bt_gatt_attr {
 
 	/** Attribute read callback
 	 *
+	 *  The callback can also be used locally to read the contents of the
+	 *  attribute in which case no connection will be set.
+	 *
 	 *  @param conn   The connection that is requesting to read
 	 *  @param attr   The attribute that's being read
 	 *  @param buf    Buffer to place the read result in
@@ -122,6 +125,9 @@ struct bt_gatt_attr {
 					u16_t offset);
 
 	/** Attribute write callback
+	 *
+	 *  The callback can also be used locally to read the contents of the
+	 *  attribute in which case no connection will be set.
 	 *
 	 *  @param conn   The connection that is requesting to write
 	 *  @param attr   The attribute that's being written
@@ -971,9 +977,14 @@ typedef u8_t (*bt_gatt_read_func_t)(struct bt_conn *conn, u8_t err,
  *  @param handle_count If equals to 1 single.handle and single.offset
  *                      are used.  If >1 Read Multiple Characteristic
  *                      Values is performed and handles are used.
+ *                      If equals to 0 by_uuid is used for Read Using
+ *                      Characteristic UUID.
  *  @param handle Attribute handle
  *  @param offset Attribute data offset
  *  @param handles Handles to read in Read Multiple Characteristic Values
+ *  @param start_handle First requested handle number
+ *  @param end_handle Last requested handle number
+ *  @param uuid 2 or 16 octet UUID
  */
 struct bt_gatt_read_params {
 	struct bt_att_req _req;
@@ -985,6 +996,11 @@ struct bt_gatt_read_params {
 			u16_t offset;
 		} single;
 		u16_t *handles;
+		struct {
+			u16_t start_handle;
+			u16_t end_handle;
+			struct bt_uuid *uuid;
+		} by_uuid;
 	};
 };
 
