@@ -1765,7 +1765,7 @@ static int ztls_poll_update_ctx(struct net_context *ctx,
 			/* EAGAIN might happen during or just after
 			 * DTLS handshake.
 			 */
-			if (recv(pfd->fd, NULL, 0, ZSOCK_MSG_DONTWAIT) < 0 &&
+			if (zsock_recv(pfd->fd, NULL, 0, ZSOCK_MSG_DONTWAIT) < 0 &&
 			    errno != EAGAIN) {
 				pfd->revents |= ZSOCK_POLLERR;
 				goto next;
