@@ -16,6 +16,7 @@
 extern "C" {
 #endif
 
+#include <stdio.h>
 #include <net/socket_offload_ops.h>
 
 extern const struct socket_offload *socket_ops;
@@ -86,6 +87,8 @@ static inline int setsockopt(int sock, int level, int optname,
 {
 	__ASSERT_NO_MSG(socket_ops);
 	__ASSERT_NO_MSG(socket_ops->setsockopt);
+
+	printf("offload setsockopt %p\n", socket_ops->setsockopt);
 
 	return socket_ops->setsockopt(sock, level, optname, optval, optlen);
 }

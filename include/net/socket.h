@@ -595,6 +595,8 @@ static inline int getsockopt(int sock, int level, int optname,
 static inline int setsockopt(int sock, int level, int optname,
 			     const void *optval, socklen_t optlen)
 {
+	printf("socket.h setsockopt\n");
+
 	return zsock_setsockopt(sock, level, optname, optval, optlen);
 }
 

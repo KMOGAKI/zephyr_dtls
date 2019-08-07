@@ -11,6 +11,7 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(net_sock, CONFIG_NET_SOCKETS_LOG_LEVEL);
 
+#include <stdio.h>
 #include <kernel.h>
 #include <net/net_context.h>
 #include <net/net_pkt.h>
@@ -302,6 +303,7 @@ int zsock_bind_ctx(struct net_context *ctx, const struct sockaddr *addr,
 
 int z_impl_zsock_bind(int sock, const struct sockaddr *addr, socklen_t addrlen)
 {
+	printf("z_impl_zsock_bind\n");
 	VTABLE_CALL(bind, sock, addr, addrlen);
 }
 
@@ -332,6 +334,7 @@ int zsock_connect_ctx(struct net_context *ctx, const struct sockaddr *addr,
 int z_impl_zsock_connect(int sock, const struct sockaddr *addr,
 			socklen_t addrlen)
 {
+	printf("z_impl_zsock_connect\n");
 	VTABLE_CALL(connect, sock, addr, addrlen);
 }
 
@@ -358,6 +361,7 @@ int zsock_listen_ctx(struct net_context *ctx, int backlog)
 
 int z_impl_zsock_listen(int sock, int backlog)
 {
+	printf("z_impl_zsock_listen\n");
 	VTABLE_CALL(listen, sock, backlog);
 }
 
@@ -419,6 +423,7 @@ int zsock_accept_ctx(struct net_context *parent, struct sockaddr *addr,
 
 int z_impl_zsock_accept(int sock, struct sockaddr *addr, socklen_t *addrlen)
 {
+	printf("z_impl_zsock_accept\n");
 	VTABLE_CALL(accept, sock, addr, addrlen);
 }
 
@@ -490,6 +495,7 @@ ssize_t zsock_sendto_ctx(struct net_context *ctx, const void *buf, size_t len,
 ssize_t z_impl_zsock_sendto(int sock, const void *buf, size_t len, int flags,
 			   const struct sockaddr *dest_addr, socklen_t addrlen)
 {
+	printf("z_impl_zsock_sendto\n");
 	VTABLE_CALL(sendto, sock, buf, len, flags, dest_addr, addrlen);
 }
 
@@ -798,6 +804,7 @@ ssize_t zsock_recvfrom_ctx(struct net_context *ctx, void *buf, size_t max_len,
 ssize_t z_impl_zsock_recvfrom(int sock, void *buf, size_t max_len, int flags,
 			     struct sockaddr *src_addr, socklen_t *addrlen)
 {
+	printf("z_impl_zsock_recvfrom\n");
 	VTABLE_CALL(recvfrom, sock, buf, max_len, flags, src_addr, addrlen);
 }
 
@@ -1107,6 +1114,7 @@ int zsock_getsockopt_ctx(struct net_context *ctx, int level, int optname,
 int zsock_getsockopt(int sock, int level, int optname,
 		     void *optval, socklen_t *optlen)
 {
+	printf("zsock_getsockopt\n");
 	VTABLE_CALL(getsockopt, sock, level, optname, optval, optlen);
 }
 
@@ -1152,6 +1160,7 @@ int zsock_setsockopt_ctx(struct net_context *ctx, int level, int optname,
 int zsock_setsockopt(int sock, int level, int optname,
 		     const void *optval, socklen_t optlen)
 {
+	printf("socket.c zsock_setsockopt\n");
 	VTABLE_CALL(setsockopt, sock, level, optname, optval, optlen);
 }
 
@@ -1269,6 +1278,7 @@ static int sock_getsockopt_vmeth(void *obj, int level, int optname,
 static int sock_setsockopt_vmeth(void *obj, int level, int optname,
 				 const void *optval, socklen_t optlen)
 {
+	printf("sockets.c sock_setsockopt_vmeth\n");
 	return zsock_setsockopt_ctx(obj, level, optname, optval, optlen);
 }
 

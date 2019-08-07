@@ -4,7 +4,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
+#include <stdio.h>
 #include <stdbool.h>
 #include <fcntl.h>
 
@@ -776,36 +776,47 @@ static int tls_mbedtls_reset(struct net_context *context)
 static int tls_mbedtls_handshake(struct net_context *context, bool block)
 {
 	int ret;
+	printf("tls_mbedtls_handshake 0 block = %d\n", block);
 
 	while ((ret = mbedtls_ssl_handshake(&context->tls->ssl)) != 0) {
+		printf("tls_mbedtls_handshake ret = %d\n", ret);
 		if (ret == MBEDTLS_ERR_SSL_WANT_READ ||
 		    ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
+			printf("tls_mbedtls_handshake 1\n");
 			if (block) {
 				continue;
 			}
 
+			printf("tls_mbedtls_handshake 2\n");
 			ret = -EAGAIN;
 			break;
 		} else if (ret == MBEDTLS_ERR_SSL_HELLO_VERIFY_REQUIRED) {
+			printf("tls_mbedtls_handshake 3\n");
 			ret = tls_mbedtls_reset(context);
+			printf("tls_mbedtls_handshake 4 ret = %d\n",ret);
 			if (ret == 0) {
+				printf("tls_mbedtls_handshake 5\n");
 				if (block) {
 					continue;
 				}
 
+				printf("tls_mbedtls_handshake 6\n");
 				ret = -EAGAIN;
 				break;
 			}
 		}
 
+		printf("tls_mbedtls_handshake 7\n");
 		NET_ERR("TLS handshake error: -%x", -ret);
 		ret = -ECONNABORTED;
 		break;
 	}
 
+	printf("tls_mbedtls_handshake 8\n");
 	if (ret == 0) {
 		k_sem_give(&context->tls->tls_established);
 	}
+	printf("tls_mbedtls_handshake 9\n");
 
 	return ret;
 }
@@ -958,17 +969,22 @@ static int tls_opt_sec_tag_list_get(struct net_context *context,
 static int tls_opt_hostname_set(struct net_context *context,
 				const void *optval, socklen_t optlen)
 {
+	printf("tls_opt_hostname_set 0\n");
 	ARG_UNUSED(optlen);
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
+	printf("tls_opt_hostname_set 1\n");
 	if (mbedtls_ssl_set_hostname(&context->tls->ssl, optval) != 0) {
 		return -EINVAL;
 	}
 #else
+	printf("tls_opt_hostname_set 2\n");
 	return -ENOPROTOOPT;
 #endif
 
+	printf("tls_opt_hostname_set 3\n");
 	context->tls->options.is_hostname_set = true;
+	printf("tls_opt_hostname_set 4\n");
 
 	return 0;
 }
